@@ -99,6 +99,3 @@ RandomizedSearchCV with 30 iterations — best AUC improved from 0.756 → 0.762
 
 `Python` `DuckDB` `LightGBM` `scikit-learn` `pandas` `Plotly` `HTML/CSS/JS`
 
----
-
-*BGU — Statistics & Data Analysis with Management | Final Year Project*
