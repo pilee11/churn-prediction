@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KKBox Churn Analysis Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0d0d0d;
+    --bg2: #151515;
+    --bg3: #1c1c1c;
+    --border: #2a2a2a;
+    --accent: #c8a96e;
+    --accent2: #e8c87a;
+    --red: #e05c5c;
+    --green: #4caf82;
+    --blue: #4a90d9;
+    --text: #e8e8e8;
+    --muted: #888;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ---- HEADER ---- */
+  .header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .header-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .header-title { font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; letter-spacing: 1px; color: var(--text); }
+  .header-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+  .header-stats { display: flex; gap: 32px; }
+  .hstat { text-align: center; }
+  .hstat-val { font-family: 'Rajdhani', sans-serif; font-size: 24px; font-weight: 700; color: var(--accent); }
+  .hstat-val.red { color: var(--red); }
+  .hstat-val.green { color: var(--green); }
+  .hstat-label { font-size: 11px; color: var(--muted); margin-top: 1px; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  /* ---- NAV TABS ---- */
+  .nav {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    display: flex; gap: 4px;
+  }
+  .nav-tab {
+    padding: 12px 20px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ---- MAIN LAYOUT ---- */
+  .main { padding: 20px 28px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ---- CARDS ---- */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .card-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+  }
+
+  /* ---- GRID LAYOUTS ---- */
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 16px; }
+  .grid-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; margin-bottom: 16px; }
+
+  /* ---- METRIC CARDS ---- */
+  .metric { text-align: center; }
+  .metric-val {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .metric-val.red { color: var(--red); }
+  .metric-val.green { color: var(--green); }
+  .metric-val.blue { color: var(--blue); }
+  .metric-label { font-size: 11px; color: var(--muted); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .metric-sub { font-size: 12px; color: #555; margin-top: 3px; }
+
+  /* ---- HORIZONTAL BAR ---- */
+  .hbar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .hbar-label { font-size: 12px; color: var(--muted); width: 110px; flex-shrink: 0; }
+  .hbar-track { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .hbar-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+  .hbar-val { font-size: 12px; font-weight: 600; color: var(--text); width: 42px; text-align: right; }
+
+  /* ---- INSIGHT BOX ---- */
+  .insight {
+    border-left: 3px solid var(--accent);
+    background: rgba(200, 169, 110, 0.05);
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 10px;
+  }
+  .insight strong { color: var(--accent); }
+
+  /* ---- STEP LIST ---- */
+  .step { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+  .step-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(200,169,110,0.15);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .step-body { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* ---- FEATURE TABLE ---- */
+  .feat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .feat-name { font-size: 12px; color: var(--text); font-family: 'Courier New', monospace; width: 180px; flex-shrink: 0; }
+  .feat-track { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .feat-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .feat-score { font-size: 11px; color: var(--muted); width: 30px; text-align: right; }
+
+  /* ---- ROC CANVAS ---- */
+  .chart-wrap { position: relative; }
+
+  /* ---- RISK CALCULATOR ---- */
+  .slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .slider-label { font-size: 12px; color: var(--muted); width: 200px; flex-shrink: 0; }
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    background: var(--bg3);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+  .slider-val { font-size: 13px; font-weight: 600; color: var(--accent); width: 52px; text-align: right; }
+
+  .risk-display {
+    border-radius: 10px;
+    padding: 24px;
+    text-align: center;
+    border: 1px solid var(--border);
+    transition: all 0.3s;
+  }
+  .risk-pct { font-family: 'Rajdhani', sans-serif; font-size: 64px; font-weight: 700; line-height: 1; }
+  .risk-label { font-size: 13px; margin-top: 8px; text-transform: uppercase; letter-spacing: 1px; }
+  .risk-desc { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  .risk-low { background: rgba(76,175,130,0.08); border-color: rgba(76,175,130,0.3); }
+  .risk-low .risk-pct { color: var(--green); }
+  .risk-low .risk-label { color: var(--green); }
+
+  .risk-med { background: rgba(200,169,110,0.08); border-color: rgba(200,169,110,0.3); }
+  .risk-med .risk-pct { color: var(--accent); }
+  .risk-med .risk-label { color: var(--accent); }
+
+  .risk-high { background: rgba(224,92,92,0.08); border-color: rgba(224,92,92,0.3); }
+  .risk-high .risk-pct { color: var(--red); }
+  .risk-high .risk-label { color: var(--red); }
+
+  /* ---- REC CARDS ---- */
+  .rec {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  .rec-num {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent);
+    color: #000;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .rec-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+  .rec-body { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .tag {
+    display: inline-block; font-size: 10px; padding: 2px 8px;
+    border-radius: 10px; margin: 6px 4px 0 0;
+    letter-spacing: 0.3px;
+  }
+  .tag-red { background: rgba(224,92,92,0.15); color: var(--red); border: 1px solid rgba(224,92,92,0.3); }
+  .tag-gold { background: rgba(200,169,110,0.15); color: var(--accent); border: 1px solid rgba(200,169,110,0.3); }
+  .tag-green { background: rgba(76,175,130,0.15); color: var(--green); border: 1px solid rgba(76,175,130,0.3); }
+
+  /* ---- MODEL TABLE ---- */
+  .model-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .model-row:last-child { border-bottom: none; }
+  .model-name { font-size: 13px; color: var(--text); width: 150px; flex-shrink: 0; }
+  .model-badge {
+    font-size: 10px; padding: 2px 7px; border-radius: 8px;
+    background: rgba(200,169,110,0.15); color: var(--accent);
+    border: 1px solid rgba(200,169,110,0.3); margin-left: 4px;
+  }
+  .model-track { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .model-fill { height: 100%; border-radius: 3px; }
+  .model-auc { font-size: 13px; font-weight: 600; color: var(--text); width: 44px; text-align: right; }
+
+  /* ---- DONUT ---- */
+  .donut-wrap { display: flex; align-items: center; justify-content: center; gap: 20px; }
+  .donut-legend { display: flex; flex-direction: column; gap: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  canvas { max-height: 220px; }
+
+  /* ---- DIVIDER ---- */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+  .section-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px; font-weight: 600;
+    color: var(--accent); text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+
+  select {
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px; padding: 6px 10px;
+    font-size: 12px; outline: none; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="header-icon">🎵</div>
+    <div>
+      <div class="header-title">KKBOX CHURN ANALYSIS DASHBOARD</div>
+      <div class="header-sub">Music Streaming · Customer Retention Intelligence · 2017</div>
+    </div>
+  </div>
+  <div class="header-stats">
+    <div class="hstat">
+      <div class="hstat-val">671K</div>
+      <div class="hstat-label">Total Users</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val red">2.4%</div>
+      <div class="hstat-label">Churn Rate</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val">0.764</div>
+      <div class="hstat-label">Model AUC</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val green">64%</div>
+      <div class="hstat-label">Recall</div>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <div class="nav-tab active" onclick="showPage('overview', this)">Project Overview</div>
+  <div class="nav-tab" onclick="showPage('eda', this)">EDA & Insights</div>
+  <div class="nav-tab" onclick="showPage('model', this)">Model Results</div>
+  <div class="nav-tab" onclick="showPage('recs', this)">Recommendations</div>
+</div>
+
+<div class="main">
+
+<!-- ========== PAGE 1: OVERVIEW ========== -->
+<div class="page active" id="page-overview">
+
+  <div class="grid-4">
+    <div class="card metric">
+      <div class="card-title">Total Users</div>
+      <div class="metric-val">671K</div>
+      <div class="metric-label">Jan–Mar 2017</div>
+    </div>
+    <div class="card metric">
+      <div class="card-title">Churners</div>
+      <div class="metric-val red">16,115</div>
+      <div class="metric-label">Churn rate 2.4%</div>
+    </div>
+    <div class="card metric">
+      <div class="card-title">Model AUC</div>
+      <div class="metric-val">0.764</div>
+      <div class="metric-label">LightGBM · Test set</div>
+    </div>
+    <div class="card metric">
+      <div class="card-title">Features Used</div>
+      <div class="metric-val blue">27</div>
+      <div class="metric-label">12 engineered</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Data Collection</div>
+      <div class="step">
+        <div class="step-num">1</div>
+        <div>
+          <div class="step-title">Raw data from Kaggle — KKBox Taiwan</div>
+          <div class="step-body">4 files: members · transactions · user_logs · train. Joined with DuckDB into a single table.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div>
+          <div class="step-title">Target population: 671K users</div>
+          <div class="step-body">Subscribers whose plan expired in April 2017, registered before January 2017.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div>
+          <div class="step-title">Monthly behavioral structure</div>
+          <div class="step-body">3 months of listening data (Jan, Feb, Mar 2017) per user — enabling trend analysis over time.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div>
+          <div class="step-title">80/20 stratified split</div>
+          <div class="step-body">2.4% churn rate preserved identically in train and test sets.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Variables Collected</div>
+      <div class="section-label" style="margin-bottom:10px;">User Profile</div>
+      <div class="insight">Age · Gender · City · Registration date</div>
+
+      <div class="section-label" style="margin-bottom:10px;">Monthly Listening (×3 months)</div>
+      <div class="insight">Active days · Avg listening seconds · Songs completed · Unique songs played</div>
+
+      <div class="section-label" style="margin-bottom:10px;">Subscription</div>
+      <div class="insight">Auto-renewal cancelled · Amount paid (TWD)</div>
+
+      <div class="section-label" style="margin-bottom:10px;">Engineered Features</div>
+      <div class="insight"><strong>Trend %</strong>: change Jan→Mar in all listening metrics<br>
+      <strong>Cost/sec</strong>: amount paid ÷ total listening seconds<br>
+      <strong>Tenure group</strong>: 0–12 / 13–36 / 36+ months</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Missing Value Strategy</div>
+    <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:14px;">
+      <div>
+        <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:6px;">Listening features</div>
+        <div style="font-size:12px; color:var(--muted);">Fill with <strong style="color:var(--accent)">0</strong> — no data = didn't listen</div>
+      </div>
+      <div>
+        <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:6px;">Auto-renewal</div>
+        <div style="font-size:12px; color:var(--muted);">Fill with <strong style="color:var(--accent)">0</strong> — no transaction = no action</div>
+      </div>
+      <div>
+        <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:6px;">Gender</div>
+        <div style="font-size:12px; color:var(--muted);">Fill with <strong style="color:var(--accent)">"Unknown"</strong> — treated as a separate category</div>
+      </div>
+      <div>
+        <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:6px;">Age (invalid)</div>
+        <div style="font-size:12px; color:var(--muted);">Fill with <strong style="color:var(--accent)">median</strong> + add binary flag <code>age_valid</code></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== PAGE 2: EDA ========== -->
+<div class="page" id="page-eda">
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title">Churn Rate by Gender</div>
+      <div class="hbar-row">
+        <div class="hbar-label">Female</div>
+        <div class="hbar-track"><div class="hbar-fill" style="width:74%; background:var(--red);"></div></div>
+        <div class="hbar-val">3.5%</div>
+      </div>
+      <div class="hbar-row">
+        <div class="hbar-label">Male</div>
+        <div class="hbar-track"><div class="hbar-fill" style="width:72%; background:var(--red);"></div></div>
+        <div class="hbar-val">3.4%</div>
+      </div>
+      <div class="hbar-row">
+        <div class="hbar-label">Unknown</div>
+        <div class="hbar-track"><div class="hbar-fill" style="width:36%; background:var(--blue);"></div></div>
+        <div class="hbar-val">1.8%</div>
+      </div>
+      <hr class="divider">
+      <div class="insight">Unknown users churn less — possibly passive subscribers who <strong>forgot</strong> they have a subscription.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Churn Rate by Tenure</div>
+      <div class="hbar-row">
+        <div class="hbar-label">0–12 months</div>
+        <div class="hbar-track"><div class="hbar-fill" style="width:42%; background:var(--blue);"></div></div>
+        <div class="hbar-val">2.0%</div>
+      </div>
+      <div class="hbar-row">
+        <div class="hbar-label">13–36 months</div>
+        <div class="hbar-track"><div class="hbar-fill" style="width:51%; background:var(--accent);"></div></div>
+        <div class="hbar-val">2.4%</div>
+      </div>
+      <div class="hbar-row">
+        <div class="hbar-label">37–60 months</div>
+        <div class="hbar-track"><div class="hbar-fill" style="width:55%; background:var(--accent);"></div></div>
+        <div class="hbar-val">2.6%</div>
+      </div>
+      <div class="hbar-row">
+        <div class="hbar-label">60+ months</div>
+        <div class="hbar-track"><div class="hbar-fill" style="width:55%; background:var(--accent);"></div></div>
+        <div class="hbar-val">2.6%</div>
+      </div>
+      <hr class="divider">
+      <div class="insight">Tenure shows minimal variation — <strong>not a strong predictor</strong> of churn.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Churn Rate by Payment (TWD)</div>
+      <div class="hbar-row">
+        <div class="hbar-label">1–99 TWD</div>
+        <div class="hbar-track"><div class="hbar-fill" style="width:17%; background:var(--green);"></div></div>
+        <div class="hbar-val">0.8%</div>
+      </div>
+      <div class="hbar-row">
+        <div class="hbar-label">100–149 TWD</div>
+        <div class="hbar-track"><div class="hbar-fill" style="width:64%; background:var(--accent);"></div></div>
+        <div class="hbar-val">3.0%</div>
+      </div>
+      <div class="hbar-row">
+        <div class="hbar-label">150–199 TWD</div>
+        <div class="hbar-track"><div class="hbar-fill" style="width:100%; background:var(--red);"></div></div>
+        <div class="hbar-val">4.7%</div>
+      </div>
+      <hr class="divider">
+      <div class="insight"><strong>Higher payers churn more</strong> — premium users may feel they don't get enough value.</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Avg Listening Seconds — Trend Analysis</div>
+      <canvas id="trendChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Key Findings</div>
+      <div class="insight">
+        <strong>Surprising:</strong> Churners listen MORE than non-churners across all 3 months (6,033 vs 5,686 sec/day in January).
+      </div>
+      <div class="insight">
+        <strong>The trend matters:</strong> Churners decline steeper (−3%) vs non-churners (−2.3%). Declining engagement predicts churn better than absolute level.
+      </div>
+      <div class="insight">
+        <strong>Active users churn too:</strong> 90% of churners are active listeners who make a <strong>conscious decision</strong> to leave — not passive dropouts.
+      </div>
+      <div class="insight">
+        <strong>Two churner types:</strong> Active churners (90%) need a better value proposition. Passive churners (10%) need reminders they have a subscription.
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">Active Days per Month — Churners vs Non-Churners</div>
+    <canvas id="activeDaysChart" style="max-height:280px;"></canvas>
+  </div>
+
+</div>
+
+<!-- ========== PAGE 3: MODEL ========== -->
+<div class="page" id="page-model">
+
+  <div class="grid-4">
+    <div class="card metric">
+      <div class="card-title">Total Users</div>
+      <div class="metric-val">671K</div>
+      <div class="metric-label">Jan–Mar 2017</div>
+    </div>
+    <div class="card metric">
+      <div class="card-title">Churn Rate</div>
+      <div class="metric-val red">2.4%</div>
+      <div class="metric-label">16,115 churners</div>
+    </div>
+    <div class="card metric">
+      <div class="card-title">AUC — Test Set</div>
+      <div class="metric-val">0.764</div>
+      <div class="metric-label">LightGBM</div>
+    </div>
+    <div class="card metric">
+      <div class="card-title">Recall</div>
+      <div class="metric-val green">64%</div>
+      <div class="metric-label">Churners caught</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Model Comparison — AUC (5-Fold CV)</div>
+      <div class="model-row">
+        <div class="model-name">LightGBM <span class="model-badge">winner</span></div>
+        <div class="model-track"><div class="model-fill" style="width:100%; background:var(--accent);"></div></div>
+        <div class="model-auc">0.756</div>
+      </div>
+      <div class="model-row">
+        <div class="model-name">XGBoost</div>
+        <div class="model-track"><div class="model-fill" style="width:96%; background:#888;"></div></div>
+        <div class="model-auc">0.731</div>
+      </div>
+      <div class="model-row">
+        <div class="model-name">Random Forest</div>
+        <div class="model-track"><div class="model-fill" style="width:88%; background:#666;"></div></div>
+        <div class="model-auc">0.674</div>
+      </div>
+      <div class="model-row">
+        <div class="model-name">Logistic Regression</div>
+        <div class="model-track"><div class="model-fill" style="width:85%; background:#555;"></div></div>
+        <div class="model-auc">0.648</div>
+      </div>
+      <hr class="divider">
+      <div class="insight">All models used <strong>5-fold stratified cross-validation</strong> on training data. Test set locked until final evaluation.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Top Feature Importance</div>
+      <div class="feat-row">
+        <div class="feat-name">actual_amount_paid</div>
+        <div class="feat-track"><div class="feat-fill" style="width:100%;"></div></div>
+        <div class="feat-score">423</div>
+      </div>
+      <div class="feat-row">
+        <div class="feat-name">active_days_trend_pct</div>
+        <div class="feat-track"><div class="feat-fill" style="width:81%;"></div></div>
+        <div class="feat-score">344</div>
+      </div>
+      <div class="feat-row">
+        <div class="feat-name">age</div>
+        <div class="feat-track"><div class="feat-fill" style="width:63%;"></div></div>
+        <div class="feat-score">266</div>
+      </div>
+      <div class="feat-row">
+        <div class="feat-name">listen_trend_pct</div>
+        <div class="feat-track"><div class="feat-fill" style="width:56%;"></div></div>
+        <div class="feat-score">236</div>
+      </div>
+      <div class="feat-row">
+        <div class="feat-name">songs_completed_trend</div>
+        <div class="feat-track"><div class="feat-fill" style="width:52%;"></div></div>
+        <div class="feat-score">222</div>
+      </div>
+      <div class="feat-row">
+        <div class="feat-name">unique_songs_trend_pct</div>
+        <div class="feat-track"><div class="feat-fill" style="width:51%;"></div></div>
+        <div class="feat-score">218</div>
+      </div>
+      <div class="feat-row">
+        <div class="feat-name">unique_songs_mar</div>
+        <div class="feat-track"><div class="feat-fill" style="width:51%;"></div></div>
+        <div class="feat-score">215</div>
+      </div>
+      <div class="feat-row">
+        <div class="feat-name">cost_per_sec</div>
+        <div class="feat-track"><div class="feat-fill" style="width:44%;"></div></div>
+        <div class="feat-score">185</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Churn Risk Calculator</div>
+    <div class="grid-2">
+      <div>
+        <div class="slider-row">
+          <div class="slider-label">Monthly payment (TWD)</div>
+          <input type="range" min="0" max="200" value="149" id="s1" oninput="calcRisk()">
+          <div class="slider-val" id="v1">149</div>
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">Active days change Jan→Mar (%)</div>
+          <input type="range" min="-100" max="100" value="-15" id="s2" oninput="calcRisk()">
+          <div class="slider-val" id="v2">-15%</div>
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">Listening seconds change (%)</div>
+          <input type="range" min="-100" max="100" value="-8" id="s3" oninput="calcRisk()">
+          <div class="slider-val" id="v3">-8%</div>
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">Auto-renewal cancelled</div>
+          <input type="range" min="0" max="1" step="1" value="0" id="s4" oninput="calcRisk()">
+          <div class="slider-val" id="v4">No</div>
+        </div>
+      </div>
+      <div id="riskBox" class="risk-display risk-med">
+        <div class="risk-pct" id="riskPct">38%</div>
+        <div class="risk-label" id="riskLabel">Medium Risk</div>
+        <div class="risk-desc" id="riskDesc">Monitor this user closely</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== PAGE 4: RECOMMENDATIONS ========== -->
+<div class="page" id="page-recs">
+
+  <div style="display:flex; flex-direction:column; gap:14px;">
+
+    <div class="rec" style="padding:20px 24px;">
+      <div class="rec-num" style="width:36px;height:36px;font-size:18px;">1</div>
+      <div style="flex:1;">
+        <div class="rec-title" style="font-size:16px; margin-bottom:8px;">Focus retention on high-paying subscribers</div>
+        <div class="rec-body" style="font-size:13px;">Users paying 150–199 TWD churn at 4.7% — nearly double the average of 2.3%. These are the most valuable users to retain. The model identified <strong style="color:var(--accent)">actual_amount_paid</strong> as the strongest predictor of churn, which means price sensitivity is the #1 lever available to the business.</div>
+        <div style="margin-top:10px; padding:10px 14px; background:var(--bg); border-radius:6px; font-size:12px; color:var(--muted); line-height:1.7;">
+          <strong style="color:var(--text);">Recommended action:</strong> Offer loyalty discounts, exclusive content, or priority support at renewal time for users in the 150–199 TWD tier. Even a 10% discount on renewal is likely profitable if it prevents churn in this group.
+        </div>
+        <div style="margin-top:10px;"><span class="tag tag-red">High Priority</span><span class="tag tag-gold">Pricing</span></div>
+      </div>
+    </div>
+
+    <div class="rec" style="padding:20px 24px;">
+      <div class="rec-num" style="width:36px;height:36px;font-size:18px;">2</div>
+      <div style="flex:1;">
+        <div class="rec-title" style="font-size:16px; margin-bottom:8px;">Build an early-warning trigger on activity decline</div>
+        <div class="rec-body" style="font-size:13px;"><strong style="color:var(--accent)">active_days_trend_pct</strong> is the second strongest predictor in the model (importance score: 344). A user whose active days drop by more than 20% from January to March is significantly more likely to churn in April. This signal is detectable 30+ days before the subscription expires.</div>
+        <div style="margin-top:10px; padding:10px 14px; background:var(--bg); border-radius:6px; font-size:12px; color:var(--muted); line-height:1.7;">
+          <strong style="color:var(--text);">Recommended action:</strong> Implement a monthly scoring pipeline that flags users with declining activity. Trigger an automated push notification or email with a special offer when a user crosses the −20% threshold, before the subscription renewal date.
+        </div>
+        <div style="margin-top:10px;"><span class="tag tag-red">High Priority</span><span class="tag tag-gold">Automation</span></div>
+      </div>
+    </div>
+
+    <div class="rec" style="padding:20px 24px;">
+      <div class="rec-num" style="width:36px;height:36px;font-size:18px;">3</div>
+      <div style="flex:1;">
+        <div class="rec-title" style="font-size:16px; margin-bottom:8px;">Differentiate retention strategy: active vs passive churners</div>
+        <div class="rec-body" style="font-size:13px;">EDA revealed two distinct churner profiles. <strong style="color:var(--accent)">90% of churners are active listeners</strong> who make a conscious decision to leave — they listen more than non-churners on average. Only 8–10% are truly inactive users. A single retention strategy cannot address both groups effectively.</div>
+        <div style="margin-top:10px; padding:10px 14px; background:var(--bg); border-radius:6px; font-size:12px; color:var(--muted); line-height:1.7;">
+          <strong style="color:var(--text);">For active churners:</strong> Improve the value proposition — better content, new features, or pricing flexibility.<br>
+          <strong style="color:var(--text);">For passive churners:</strong> Send a reminder that they have an active subscription, potentially with usage highlights to re-engage them.
+        </div>
+        <div style="margin-top:10px;"><span class="tag tag-gold">Segmentation</span><span class="tag tag-green">Retention</span></div>
+      </div>
+    </div>
+
+    <div class="rec" style="padding:20px 24px;">
+      <div class="rec-num" style="width:36px;height:36px;font-size:18px;">4</div>
+      <div style="flex:1;">
+        <div class="rec-title" style="font-size:16px; margin-bottom:8px;">Investigate pricing perception at premium tiers</div>
+        <div class="rec-body" style="font-size:13px;">The data shows a counterintuitive pattern: <strong style="color:var(--accent)">higher-paying users churn more</strong>. Users paying 150–199 TWD churn at 4.7% vs 0.8% for users paying 1–99 TWD. This negative correlation between price and retention suggests that premium users may have higher expectations that are not being met by the current product.</div>
+        <div style="margin-top:10px; padding:10px 14px; background:var(--bg); border-radius:6px; font-size:12px; color:var(--muted); line-height:1.7;">
+          <strong style="color:var(--text);">Recommended action:</strong> Conduct a satisfaction survey targeting the 150–199 TWD segment to identify specific pain points. Use the findings to prioritize product improvements or create a dedicated premium experience that justifies the higher price point.
+        </div>
+        <div style="margin-top:10px;"><span class="tag tag-gold">Research</span><span class="tag tag-gold">Pricing</span></div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</div>
+
+<script>
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  el.classList.add('active');
+}
+
+const months = ['January', 'February', 'March'];
+const chartDefaults = {
+  responsive: true,
+  plugins: { legend: { labels: { color: '#888', font: { size: 11 } } } },
+  scales: {
+    x: { ticks: { color: '#666' }, grid: { color: '#1c1c1c' } },
+    y: { ticks: { color: '#666' }, grid: { color: '#1c1c1c' } }
+  }
+};
+
+// Trend chart
+new Chart(document.getElementById('trendChart'), {
+  type: 'line',
+  data: {
+    labels: months,
+    datasets: [
+      {
+        label: 'Churned', data: [6033, 5988, 5852],
+        borderColor: '#e05c5c', backgroundColor: 'rgba(224,92,92,0.08)',
+        borderWidth: 2.5, borderDash: [6,3], pointRadius: 5,
+        pointBackgroundColor: '#e05c5c', tension: 0.3
+      },
+      {
+        label: 'Did Not Churn', data: [5686, 5567, 5556],
+        borderColor: '#4a90d9', backgroundColor: 'rgba(74,144,217,0.08)',
+        borderWidth: 2.5, pointRadius: 5,
+        pointBackgroundColor: '#4a90d9', tension: 0.3
+      }
+    ]
+  },
+  options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { display: false } } }
+});
+
+// Active days chart
+new Chart(document.getElementById('activeDaysChart'), {
+  type: 'line',
+  data: {
+    labels: months,
+    datasets: [
+      { label: 'Churned', data: [16.1, 15.8, 16.3], borderColor: '#e05c5c', borderWidth: 2, borderDash: [4,2], pointRadius: 4, pointBackgroundColor: '#e05c5c' },
+      { label: 'Stayed', data: [14.5, 13.9, 14.7], borderColor: '#4a90d9', borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#4a90d9' }
+    ]
+  },
+  options: chartDefaults
+});
+
+// Songs chart
+new Chart(document.getElementById('songsChart'), {
+  type: 'line',
+  data: {
+    labels: months,
+    datasets: [
+      { label: 'Churned', data: [16.17, 16.15, 16.13], borderColor: '#e05c5c', borderWidth: 2, borderDash: [4,2], pointRadius: 4, pointBackgroundColor: '#e05c5c' },
+      { label: 'Stayed', data: [14.68, 14.45, 14.94], borderColor: '#4a90d9', borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#4a90d9' }
+    ]
+  },
+  options: chartDefaults
+});
+
+// Unique songs chart
+new Chart(document.getElementById('uniqueChart'), {
+  type: 'line',
+  data: {
+    labels: months,
+    datasets: [
+      { label: 'Churned', data: [15.93, 15.83, 15.88], borderColor: '#e05c5c', borderWidth: 2, borderDash: [4,2], pointRadius: 4, pointBackgroundColor: '#e05c5c' },
+      { label: 'Stayed', data: [14.21, 13.82, 14.23], borderColor: '#4a90d9', borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#4a90d9' }
+    ]
+  },
+  options: chartDefaults
+});
+
+// Risk calculator
+function calcRisk() {
+  const price  = parseInt(document.getElementById('s1').value);
+  const days   = parseInt(document.getElementById('s2').value);
+  const listen = parseInt(document.getElementById('s3').value);
+  const auto   = parseInt(document.getElementById('s4').value);
+
+  document.getElementById('v1').textContent = price;
+  document.getElementById('v2').textContent = (days >= 0 ? '+' : '') + days + '%';
+  document.getElementById('v3').textContent = (listen >= 0 ? '+' : '') + listen + '%';
+  document.getElementById('v4').textContent = auto ? 'Yes' : 'No';
+
+  let score = (price / 200) * 35;
+  score += Math.max(0, -days / 100) * 30;
+  score += Math.max(0, -listen / 100) * 20;
+  score += auto * 15;
+  score = Math.round(Math.min(95, Math.max(5, score)));
+
+  document.getElementById('riskPct').textContent = score + '%';
+  const box = document.getElementById('riskBox');
+
+  if (score < 30) {
+    box.className = 'risk-display risk-low';
+    document.getElementById('riskLabel').textContent = 'Low Risk';
+    document.getElementById('riskDesc').textContent = 'This user is likely to renew';
+  } else if (score < 60) {
+    box.className = 'risk-display risk-med';
+    document.getElementById('riskLabel').textContent = 'Medium Risk';
+    document.getElementById('riskDesc').textContent = 'Monitor this user closely';
+  } else {
+    box.className = 'risk-display risk-high';
+    document.getElementById('riskLabel').textContent = 'High Risk';
+    document.getElementById('riskDesc').textContent = 'Intervene with a retention offer now';
+  }
+}
+</script>
+</body>
+</html>
