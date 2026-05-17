@@ -2,7 +2,7 @@
 
 A machine learning project predicting customer churn for KKBox, a Taiwanese music streaming company, using 3 months of behavioral data.
 
-**[📊 View Interactive Dashboard](https://pilee11.github.io/churn-prediction/dashboard.html)** | **[📓 View Notebook](https://colab.research.google.com/drive/1tH9yRc9DWme74MVphQIz4XbkAdLpXp-V)**
+**[📊 View Interactive Dashboard](https://pilee11.github.io/churn-prediction/Churn%20prediction.html)** | **[📓 View Notebook](https://colab.research.google.com/drive/1tH9yRc9DWme74MVphQIz4XbkAdLpXp-V)**
 
 ---
 
